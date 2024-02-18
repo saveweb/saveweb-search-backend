@@ -13,8 +13,8 @@ import meilisearch_python_sdk.errors
 
 MEILI_KEY = os.getenv('MEILI_KEY', '')
 print('$MEILI_KEY', 'set' if MEILI_KEY else 'not set')
-MEILI_HOST = os.getenv('MEILI_HOST', 'http://127.0.0.1:7700')
-print('$MEILI_HOST', MEILI_HOST)
+MEILI_URL = os.getenv('MEILI_URL', 'http://127.0.0.1:7700')
+print('$MEILI_URL', MEILI_URL)
 STWP_SEARCH_MAX_LOAD = float(os.getenv('STWP_SEARCH_MAX_LOAD')) if os.getenv('STWP_SEARCH_MAX_LOAD') else (
     os.cpu_count() / 1.5 if os.cpu_count() else 1.5
 )
@@ -94,7 +94,7 @@ def ops_limiter(func):
     return wrapper
 
 
-client = meilisearch_python_sdk.AsyncClient(MEILI_HOST, MEILI_KEY)
+client = meilisearch_python_sdk.AsyncClient(MEILI_URL, MEILI_KEY)
 
 
 @app.get('/api/')
