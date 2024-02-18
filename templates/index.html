@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>丑搜</title>
+    <style>
+        #searchBar {
+            width: 500px;
+            height: 30px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            padding: 5px;
+            border: solid 1px #ccc;
+            box-shadow: 0px 0px 5px #ccc;
+            font-size: 16px;
+        }
+        .resultItem {
+            margin-top: 10px;
+            /* padding: 5px; */
+            /* 居中 */
+            margin-left: auto;
+            margin-right: auto;
+            border: solid 1px #ccc;
+            box-shadow: 0px 0px 5px #ccc;
+            background-color: #eeeeeecb;
+            max-width: 1000px;
+        }
+        .resultTitle {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .resultInfo {
+            font-size: 14px;
+        }
+        .resultContent {
+            font-size: 14px;
+        }
+        #prevPage, #nextPage, #fullText {
+            width: 100px;
+            height: 30px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            margin-right: auto;
+            border: solid 1px #ccc;
+            box-shadow: 0px 0px 5px #ccc;
+            font-size: 16px;
+        }
+        #estimatedTotalHits, #page, #fullText, #prevPage, #nextPage {
+            display: inline-block;
+            /* font-size: 16px; */
+        }
+        #fullText {
+            color: red;
+        }
+        #buttonGroup_ {
+            margin-top: 20px;
+            margin-bottom: 20px;
+            margin-left: auto;
+            margin-right: auto;
+            max-width: 220px;
+        }
+        #prevPage_, #nextPage_ {
+            width: 100px;
+            height: 30px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            margin-right: auto;
+            border: solid 1px #ccc;
+            box-shadow: 0px 0px 5px #ccc;
+            font-size: 16px;
+        }
+        .uglyHighlight {
+            color: rgb(255, 0, 153);
+        }
+    </style>
+</head>
+<body>
+    <input type="text" id="searchBar" placeholder="请输入关键字">
+    
+    <div id="estimatedTotalHits"></div> 第 <div id="page"></div> 页
+    <button id="prevPage">上一页</button> <button id="nextPage">下一页</button>
+    <button id="fullText">展开全文</button>
+
+    <div id="searchResults">随便打点字呗</div>
+    <div id="buttonGroup_">
+        <button id="prevPage_">上一页</button> <button id="nextPage_">下一页</button>
+    </div>
+
+    <li>多么优雅的搜索界面！全文搜索，模糊搜索，简繁同搜，拼音，同音字。</li>
+    <li>有近 13 万篇中文博客文章（包含少量播客），共收录有 1.5K+ 博客。</li>
+    <p><strong>搜索结果以匹配度排序，没有时间权重，这样更容易找到真正有价值的文章</strong>。如果你需要更精准的搜索结果，请发动你的小脑瓜。可以用 ";作者" 来筛选同作者的文章。数据库月度更新，如果你需要实时信息，请使用其他优美的搜索引擎。希望你能在这十几万篇文章里找到有用的东西。</p>
+    <br>
+    <li>输入文字后如果没反应说明数据库炸了。</li>
+    <li>什么，左右键能同时移动光标和翻页，是的，这是 feature 。翻页翻过了就啥都没有了，是的，这也是 feature ！</li>
+    <li>为什么下面的翻页按钮没用？这是 fea... 好吧，是 BUG，修了。</li>
+    <li>为什么你认为本站需要搜索按钮？那太优雅了，你只管在框框里打字，剩下的浏览器来想办法。</li>
+    <li>什么，你说本站真的太优雅了？请把您写好的 uGly CsS 直接发给我！</li>
+    <p><del>展开全文还不太优雅，我看能不能塞个 MarkDown 渲染器。</del>不加了不加了，人脑不就是最好的 MarkDown 渲染器吗？</p>
+    <p>如需添加收录，给我发消息 TG: @yzqzss / Email: yzqzss@othing.xyz </p>
+    <script>
+        // 获取搜索框、搜索结果、总量估计 元素
+        const searchBar = document.getElementById('searchBar');
+        const searchResults = document.getElementById('searchResults');
+        const estimatedTotalHits = document.getElementById('estimatedTotalHits');
+        const prevPage = document.getElementById('prevPage');
+        const nextPage = document.getElementById('nextPage');
+        const prevPage_ = document.getElementById('prevPage_');
+        const nextPage_ = document.getElementById('nextPage_');
+        const fullText = document.getElementById('fullText');
+
+        // 流控
+        let dosearchCount = 0;
+        setInterval(() => {
+            dosearchCount = 0;
+        }, 10 * 1000);
+
+        // 默认页码
+        let page = 0;
+
+        // 监听上一页
+        prevPage_.addEventListener('click', () => {
+            if (page > 0) {
+                page--;
+                searchBar.dispatchEvent(new Event('dosearch'));
+            }
+        });
+        prevPage.addEventListener('click', () => {
+            if (page > 0) {
+                page--;
+                searchBar.dispatchEvent(new Event('dosearch'));
+            }
+        });
+        // 监听左箭头
+        document.addEventListener('keydown', (event) => {
+            if (event.keyCode == 37) {
+                if (page > 0) {
+                    page--;
+                    searchBar.dispatchEvent(new Event('dosearch'));
+                }
+            }
+        });
+
+        // 监听下一页
+        nextPage_.addEventListener('click', () => {
+            page++;
+            searchBar.dispatchEvent(new Event('dosearch'));
+        });
+        nextPage.addEventListener('click', () => {
+            page++;
+            searchBar.dispatchEvent(new Event('dosearch'));
+        });
+        // 监听右箭头
+        document.addEventListener('keydown', (event) => {
+            if (event.keyCode == 39) {
+                page++;
+                searchBar.dispatchEvent(new Event('dosearch'));
+            }
+        });
+
+        let fullTextFlag = false;
+
+        // 监听展开全文
+        fullText.addEventListener('click', () => {
+            if (fullTextFlag) {
+                fullTextFlag = false;
+                fullText.innerHTML = '展开全文';
+                searchResults.innerHTML = '';
+                searchBar.dispatchEvent(new Event('dosearch'));
+            } else {
+                fullTextFlag = true;
+                fullText.innerHTML = '收起全文';
+                searchResults.innerHTML = '';
+                searchBar.dispatchEvent(new Event('dosearch'));
+            }
+        });
+
+
+        // 监听搜索框的输入事件
+        searchBar.addEventListener('input', () => {
+            // 重置页码
+            page = 0;
+            // 重置全文
+            fullTextFlag = false;
+            fullText.innerHTML = '展开全文';
+            // 更新页码
+            document.getElementById('page').innerHTML = page + 1;
+            
+            // 等待用户输入完毕后再搜索
+            clearTimeout(window.searchTimer);
+            window.searchTimer = setTimeout(() => {
+                searchBar.dispatchEvent(new Event('dosearch'));
+            }, 200);
+        });
+        // 监听搜索框的搜索事件
+        searchBar.addEventListener('dosearch', () => {
+            // 获取搜索关键字
+            const query = searchBar.value.trim();
+
+            // 如果搜索关键字为空，则清空搜索结果并返回
+            if (!query) {
+                searchResults.innerHTML = '';
+                return;
+            }
+
+            if (dosearchCount > 20) {
+                searchResults.innerHTML = '搜索太频繁了，休息一下吧。';
+                return;
+            }
+            dosearchCount++;
+
+            // 发送搜索请求
+            // p 从 0 开始，h 代表是否返回高亮
+            fetch('/api/search?q=' + encodeURIComponent(query) + '&p=' + page + '&f=' + fullTextFlag + '&h=' + true)
+                .then(response => response.json())
+                .then(data => {
+
+                    // results.update({
+                    //     'hits': _results['hits'],
+                    //     'estimatedTotalHits': _results['estimatedTotalHits'],
+                    // })
+
+
+                    // 清空搜索结果
+                    searchResults.innerHTML = '';
+
+                    // 添加估计的总命中数
+                    if (data.estimatedTotalHits == 1000) {
+                        estimatedTotalHits.innerHTML = `约 999+ 条结果`;
+                    } else {
+                        estimatedTotalHits.innerHTML = `约 ${data.estimatedTotalHits} 条结果`;
+                    }
+
+                    // 更新页码
+                    document.getElementById('page').innerHTML = page + 1;
+
+                    // 显示搜索结果
+                    data.hits.forEach(hit => {
+                        const resultItem = document.createElement('div');
+                        resultItem.classList.add('resultItem');
+                        const resultTitle = document.createElement('a');
+                        resultTitle.classList.add('resultTitle');
+                        resultTitle.innerHTML = hit.title.replace(/;/g, '');
+                        resultTitle.href = hit.link;
+
+                        const resultInfo = document.createElement('div');
+                        resultInfo.classList.add('resultInfo');
+                        resultInfo.innerHTML = "by " + hit.author + ' at ' + new Date(hit.date*1000).toLocaleString() + '. 大概字数: ' + hit.content.length;
+
+                        const resultContent = document.createElement('div');
+                        resultContent.classList.add('resultContent');
+                        if (fullTextFlag) {
+                            // 去掉连续两个以上的换行符（最多保留两个）
+                            hit.content = hit.content.replace(/\n{3,}/g, '\n\n');
+                            // 将 \n 替换为 <br>
+                            resultContent.innerHTML = hit.content.replace(/\n/g, '<br>');
+                        } else {
+                            resultContent.innerHTML = hit.content + '...';
+                        }
+
+                        resultItem.appendChild(resultTitle);
+                        resultItem.appendChild(resultInfo);
+                        resultItem.appendChild(resultContent);
+                        searchResults.appendChild(resultItem);
+                    });
+                })
+                .catch(error => console.error(error));
+        });
+    </script>
+</body>
+</html>

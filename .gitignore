@@ -1,0 +1,6 @@
+.git
+.venv
+__pycache__
+search.log
+.vscode
+deploy.sh

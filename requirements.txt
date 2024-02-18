@@ -1,0 +1,3 @@
+fastapi
+hypercorn
+meilisearch-python-sdk
