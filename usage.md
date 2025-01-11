@@ -98,7 +98,7 @@ link: str, 文章链接
 ```sql
 (title = "hello world")
 (tags IN [周报, 日报, 周报] AND date sec(2024-01-01) TO sec(2025-01-01))
-(((tags IN [ctf, writeup, pwn, crypto, misc, reverse]) OR (link CONTAINS "ctf" OR link CONTAINS "writeup") OR (title CONTAINS "ctf" OR title CONTAINS "writeup")) AND (author != MiaoTony))
+(((tags IN [ctf, writeup, pwn, misc, reverse]) OR (link CONTAINS "ctf" OR link CONTAINS "writeup") OR (title CONTAINS "ctf" OR title CONTAINS "writeup")))
 作业 (id_feed=1662)
 ((  (id_feed=24 AND title STARTS WITH "科技爱好者周刊") OR 
     (title STARTS WITH "产品周刊") OR
