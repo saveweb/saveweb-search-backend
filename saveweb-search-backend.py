@@ -246,7 +246,7 @@ async def search(q: str = 'saveweb', p: int = 0, f: str = 'false', h: str = 'fal
             del hit['_formatted']
 
         hit['author'] = '' if not hit['author'] else ';' +' ;'.join(hit['author'])
-        hit['tags'] = '' if not hit['tags'] else ';' + ' ;'.join(hit['tags'])
+        hit['tags'] = '' if not hit['tags'] else '#' + ' #'.join(hit['tags'])
 
     results = {
         'hits': _results.hits,
