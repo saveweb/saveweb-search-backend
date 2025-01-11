@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from functools import wraps
 import asyncio
 import os
@@ -63,7 +64,7 @@ def load_limiter(func):
                     },
                 ],
                 'error': '丑搜当前荷载过高，请稍后再试',
-            }, status_code=503, headers={'Retry-After': '30'})
+            }, headers={'Retry-After': '30'})
         return await func(*args, **kwargs)
     return wrapper
 
@@ -92,6 +93,40 @@ def ops_limiter(func):
         finally:
             flying_ops -= 1
     return wrapper
+
+
+def magic_date_filter(_filter: str) -> str:
+    for args in [
+        ('sec(',')', 'sec'),
+        ('us(',')', 'us'),
+    ]:
+        _filter = _magic_date_filter(_filter, args)
+    return _filter
+
+def _magic_date_filter(_filter: str, args: tuple[str, str, str]) -> str:
+    start_tag,end_tag,mode = args
+
+    left_at = _filter.find(start_tag)
+    right_at = -1
+    if left_at != -1:
+        right_at = left_at + _filter[left_at:].find(end_tag)
+
+    if left_at != -1 and right_at != -1 and left_at < right_at:
+        _date = _filter[left_at + len(start_tag):right_at]
+        try:
+            if mode == 'sec':
+                epoch = datetime.strptime(_date, '%Y-%m-%d').replace(tzinfo=timezone.utc).timestamp()
+            elif mode == 'us':
+                epoch = datetime.strptime(_date, '%Y-%m-%d').replace(tzinfo=timezone.utc).timestamp() * 1000000
+            else:
+                raise ValueError('mode not supported')
+            _filter = _filter[:left_at] + str(int(epoch)) + _filter[right_at + len(end_tag):]
+            return _magic_date_filter(_filter, args)
+        except Exception as e:
+            print('date_magic_filter error:', e)
+
+    return _filter
+
 
 
 client = meilisearch_python_sdk.AsyncClient(MEILI_URL, MEILI_KEY)
@@ -126,11 +161,11 @@ async def stats():
 @app.get('/api/search')
 @load_limiter
 @ops_limiter
-async def search(q: str = 'saveweb', p: int = 0, f: str = 'false', h: str = 'false'):
+async def search(q: str = 'saveweb', p: int = 0, f: str = 'false', h: str = 'false', sort: str = ""):
     query = q  # 搜索词
     page = p  # 0-based
-    fulltext = f  # 返回全文（搜索还是以全文做搜索，只是返回的时候限制一下长度）
-    highlight = h  # 是否高亮
+    fulltext = f == 'true' # 返回全文（搜索还是以全文做搜索，只是返回的时候限制一下长度）
+    highlight = h == 'true'  # 高亮
 
     print(query, page, 'fulltext:', fulltext, 'highlight:', highlight)
     with open('search.log', 'a') as fio:
@@ -138,70 +173,85 @@ async def search(q: str = 'saveweb', p: int = 0, f: str = 'false', h: str = 'fal
 
     # 搜空，返空
     if not query:
-        return JSONResponse({
-            'error': '搜索词为空',
-        }, status_code=400)
+        return {'error': '搜索词为空'}
 
     opt_params = {
         'limit': 10,
         'offset': 10 * page,
-        'attributes_to_retrieve': ['id', 'id_feed', 'title', 'content', 'link', 'date', 'tags', 'author', 'lastSeen'],
+        'attributes_to_retrieve': ['id', 'id_feed', 'title', 'content', 'link', 'date', 'tags', 'author', 'lastSeen', 'content_length'],
     }
 
-    if fulltext != 'true':
+    # sort
+    if sort:
+        opt_params['sort'] = sort.split(',')
+
+    # 高级搜索
+    if '(' in query and query[-1] == ')' and query:
+        _filter = query[query.find('(') + 1:query.rfind(')')]
+        if not _filter:
+            return {'error': '搜索语法错误: empty filter'}
+
+        try:
+            _filter = magic_date_filter(_filter)
+        except Exception as e:
+            return {'error': 'magic_date_filter error: ' + str(e)}
+
+        query = query[:query.find('(')].strip() # 用 filter 时，query 可以空
+        print('real_filter:', _filter)
+        opt_params['filter'] = _filter
+
+    if not fulltext:
         opt_params['attributes_to_crop'] = ['content']
         opt_params['crop_length'] = 120
 
-    if highlight == 'true':
+    if highlight:
         opt_params['attributes_to_highlight'] = ['title', 'content', 'date', 'tags', 'author']
         opt_params['highlight_pre_tag'] = '<span class="uglyHighlight text-purple-500">'
         opt_params['highlight_post_tag'] = '</span>'
 
-    # 第一次搜索
     try:
         _results = await client.index(index_name).search(query, **opt_params)
     except meilisearch_python_sdk.errors.MeilisearchError as e:
+        if "invalid_search_filter" in str(e):
+            return {
+                'hits': [
+                    {
+                        'title': '搜索语法错误',
+                        'content': '你这高级搜索写得有点东西哦😮: ' + e.message,
+                        'author': '丑搜',
+                        'date': int(time.time()),
+                        'link': '#',
+                    },
+                ],
+                'error': '搜索语法错误: ' + e.message,
+            }
         print('数据库错误', e)
         return {
             'hits': [
                 {
                     'title': '数据库错误',
-                    'content': '查询数据库时出错。如果一直出现这个错误，说明数据库寄了，请反馈。',
+                    'content': '查询数据库时出错。如果一直出现这个错误，说明数据库寄了，请反馈 ---- \n\n' + e.message,
                     'author': ';丑搜',
                     'date': int(time.time()),
                     'link': '#',
                 },
             ],
-            'error': '数据库错误',
+            'error': '数据库错误: ' + e.message,
         }
 
-    lengths : dict[str, int]= {}
-    if fulltext != 'true':  # 再搜索一次，获取全文长度
-        opt_params = {
-            'limit': 10,
-            'offset': 10 * page,
-            'attributes_to_retrieve': ['id', 'id_feed', 'title', 'content', 'link', 'date', 'tags', 'author', 'lastSeen'],
-        }
-        _results2 = await client.index(index_name).search(query, **opt_params)
-        for hit in _results2.hits:
-            lengths.update({str(hit['id']): len(hit['content'])})
-
-    # replace the hit with _formatted
     for hit in _results.hits:
-        if fulltext != 'true':
-            assert lengths != {}
-            if str(hit['id']) in lengths:
-                hit['content_length'] = lengths[str(hit['id'])]
-        else:
-            hit['content_length'] = len(hit['content'])
+        # replace the hit with _formatted
         if '_formatted' in hit:
             hit.update(hit['_formatted'])
             del hit['_formatted']
 
+        hit['author'] = '' if not hit['author'] else ';' +' ;'.join(hit['author'])
+
     results = {
         'hits': _results.hits,
         'estimatedTotalHits': _results.estimated_total_hits, #TODO: estimatedTotalHits 改为 estimated_total_hits
-        'humans.txt': '使用 API 时请检查 error 字段，高荷载/出错时会返回它。is_favorite 字段目前与主数据库不同步，只有在全库重新索引时才会更新。',
+        'estimated_total_hits': _results.estimated_total_hits,
+        'humans.txt': '使用 API 时请检查 error 字段，高荷载/出错时会返回它',
     }
 
     return results
