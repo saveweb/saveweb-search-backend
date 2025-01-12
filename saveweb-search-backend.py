@@ -1,3 +1,5 @@
+
+from html import unescape as html_unescape
 from datetime import datetime, timezone
 from functools import wraps
 import asyncio
@@ -261,6 +263,13 @@ async def search(q: str = 'saveweb', p: int = 0, f: str = 'false', h: str = 'fal
 
         hit['author'] = '' if not hit['author'] else ';' +' ;'.join(hit['author'])
         hit['tags'] = '' if not hit['tags'] else '#' + ' #'.join(hit['tags'])
+
+        try:
+            # TODO: 直接存解码好的
+            hit['link'] = html_unescape(hit['link'])
+        except Exception as e:
+            print('html_unescape error:', e)
+            pass
 
     results = {
         'hits': _results.hits,
