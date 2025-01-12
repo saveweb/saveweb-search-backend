@@ -46,6 +46,7 @@ tags: list[str], 文章标签（注意是列表）
 date: int, feed 自行声明的文章发布时间，以秒计，UTC 时间（注意时间直接取自 feed，可能不准确）
 content: str, 文章内容（markdown）
 link: str, 文章链接
+content_length: int, 文章字数（不准确）
 ```
 
 #### 运算符
