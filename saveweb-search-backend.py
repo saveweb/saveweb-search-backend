@@ -40,7 +40,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-index_name = "entry"
+INDEX_NAME = "entry"
 
 
 async def get_load():
@@ -142,18 +142,32 @@ async def go_back_home():
 @ops_limiter
 async def article(entry_id: int):
     results = {}
-    results['data'] = await client.index(index_name).get_document(entry_id)
+    results['data'] = await client.index(INDEX_NAME).get_document(entry_id)
     results['humans.txt'] = 'is_favorite 目前与主数据库不同步'
 
     return results
+
+async def get_meili_max_id() -> int:
+    r = await client.index(INDEX_NAME).search(
+        query="",
+        limit=1,
+        attributes_to_retrieve=['id'],
+        sort=["id:desc"]
+    )
+    max_id = r.hits[0]['id'] if r.hits else 0
+    return max_id
+
 
 @app.get('/api/stats')
 @app.head('/api/stats')
 @load_limiter
 @ops_limiter
 async def stats():
-    stats = await client.index(index_name).get_stats()
-    return stats
+    stats = await client.index(INDEX_NAME).get_stats()
+    max_id = await get_meili_max_id()
+    # us to date
+    last_indexed_at = datetime.fromtimestamp(max_id / 1000000, tz=timezone.utc)
+    return {"db_stats":stats,"max_id":max_id,"last_indexed_at":last_indexed_at.isoformat()}
 
     
     
@@ -210,7 +224,7 @@ async def search(q: str = 'saveweb', p: int = 0, f: str = 'false', h: str = 'fal
         opt_params['highlight_post_tag'] = '</span>'
 
     try:
-        _results = await client.index(index_name).search(query, **opt_params)
+        _results = await client.index(INDEX_NAME).search(query, **opt_params)
     except meilisearch_python_sdk.errors.MeilisearchError as e:
         if "invalid_search_filter" in str(e):
             return {
