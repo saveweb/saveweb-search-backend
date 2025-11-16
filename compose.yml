@@ -1,0 +1,10 @@
+services:
+  saveweb-search-backend:
+    build: .
+    container_name: saveweb-search-backend
+    ports:
+      - "127.0.0.12:8077:8080"
+    restart: always
+    environment:
+      - MEILI_KEY=${MEILI_KEY}
+      - MEILI_URL=${MEILI_URL}

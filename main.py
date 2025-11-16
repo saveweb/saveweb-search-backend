@@ -8,7 +8,7 @@ import time
 
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import JSONResponse
 
 import meilisearch_python_sdk
 import meilisearch_python_sdk.errors
@@ -184,8 +184,6 @@ async def search(q: str = 'saveweb', p: int = 0, f: str = 'false', h: str = 'fal
     highlight = h == 'true'  # 高亮
 
     print(query, page, 'fulltext:', fulltext, 'highlight:', highlight)
-    with open('search.log', 'a') as fio:
-        fio.write(query + '\t' + str(page) + '\n')
 
     # 搜空，返空
     if not query:
@@ -282,14 +280,14 @@ async def search(q: str = 'saveweb', p: int = 0, f: str = 'false', h: str = 'fal
 
 @app.route('/')
 async def root(request):
-    return HTMLResponse(open('templates/index.html', 'r').read()) # 反正只有一个页面
+    return JSONResponse({"error":"Legacy Ugly Search v1 has been discontinued, please use search.saveweb.org"})
 
 async def main():
     import hypercorn.asyncio
     config = hypercorn.Config()
-    config.bind = ['[::]:8077']
+    config.bind = ['[::]:8080']
     await hypercorn.asyncio.serve(app, config)
 
 if __name__ == '__main__':
-    # hypercorn --bind '[::]:8077' saveweb-search-backend:app
+    # hypercorn --bind '[::]:8080' saveweb-search-backend:app
     asyncio.run(main())
