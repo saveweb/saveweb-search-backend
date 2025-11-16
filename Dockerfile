@@ -8,4 +8,4 @@ ADD . /app
 WORKDIR /app
 RUN uv sync --locked
 
-CMD [ "uv", "run", "main.py" ]
+CMD [ "uv", "run", "saveweb_search.py" ]
